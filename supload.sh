@@ -284,7 +284,7 @@ upload() {
     if [ "$MD5CHECK" == "1" ]; then
         header_etage="-H ETag:$filehash"
     fi
-    $CURL ${CURLOPTS} -X PUT -H "X-Auth-Token: ${AUTH_TOKEN}" -H "Content-Type: ${cont_type:-application/octet-stream}" $header_etage "$dest_url" -g -T "$src" -s -D "$temp_file" 1> /dev/null
+    $CURL ${CURLOPTS} --http1.0 -X PUT -H "X-Auth-Token: ${AUTH_TOKEN}" -H "Content-Type: ${cont_type:-application/octet-stream}" $header_etage "$dest_url" -g -T "$src" -s -D "$temp_file" 1> /dev/null
 
     # get hash for uploaded file (from response)
     etag=`cat "${temp_file}" | egrep -w -o "etag: .+" | tr -d '\r' | sed 's/etag: //g'`
