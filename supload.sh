@@ -51,7 +51,7 @@ QUIETMODE="0"
 
 # Utils
 CURL="`which curl`"
-CURLOPTS=""
+CURLOPTS="--http1.0"
 MD5SUM=`which md5sum`
 FILEEX=`which file`
 
@@ -86,7 +86,7 @@ if [[ -z "$USER" || -z "$KEY" || -z "$1"  || -z "$2" ]]; then
 fi
 
 if [[ "$AUTH_URL" == https* ]]; then
-    CURLOPTS="-k"
+    CURLOPTS="${CURLOPTS} -k"
 fi
 
 DEST_DIR="${1%%/}/" # ensure / in end
@@ -108,13 +108,22 @@ auth() {
     local url
     local user
     local key
+    local resp_status
 
     url="$1"
     user="$2"
     key="$3"
 
     temp_file=`mktemp /tmp/.supload.XXXXXX`
-    ${CURL} ${CURLOPTS} -H "X-Auth-User: ${user}" -H "X-Auth-Key: ${key}" "${url}" -s -D "${temp_file}"
+    ${CURL} ${CURLOPTS} -H "X-Auth-User: ${user}" -H "X-Auth-Key: ${key}" "${url}" -s -D "${temp_file}" 1> /dev/null
+
+    resp_status=`cat "${temp_file}" | head -n1 | tr -d '\r'`
+    resp_status="${resp_status#* }"
+    if [ "$resp_status" == "403 Forbidden" ]; then
+        echo "[!] Deny access, auth failed!"
+        rm -f "${temp_file}"
+        exit 1
+    fi
 
     STOR_URL=`cat "${temp_file}" | grep -w -o "x-storage-url: https://.*" | tr -d '\r' | sed 's/x-storage-url: //g'`
     AUTH_TOKEN=`cat "${temp_file}" | grep -w -o "x-auth-token: .*" | tr -d '\r' | sed 's/x-auth-token: //g'`
@@ -122,13 +131,13 @@ auth() {
     if [[ -z "${STOR_URL}" || -z "${AUTH_TOKEN}" ]]; then
         echo "[!] Auth failed"
         cat "${temp_file}"
-        rm -f ${temp_file}
+        rm -f "${temp_file}"
         exit 1
     fi
 
     STOR_URL="${STOR_URL%%/}/"
 
-    rm -f ${temp_file}
+    rm -f "${temp_file}"
 }
 
 
@@ -165,11 +174,21 @@ head_etag() {
     local temp_file
     local url
     local etag
+    local resp_status
 
     temp_file=`mktemp /tmp/.supload.XXXXXX`
     url="$1"
 
     $CURL ${CURLOPTS} -H "X-Auth-Token: ${AUTH_TOKEN}" "${url}" -s -I -D "${temp_file}" 1> /dev/null
+
+    resp_status=`cat "${temp_file}" | head -n1 | tr -d '\r'`
+    resp_status="${resp_status#* }"
+    if [ "$resp_status" == "403 Forbidden" ]; then
+        rm -f "${temp_file}"
+        echo ""
+        return 2
+    fi
+
     etag=`cat "${temp_file}" | egrep -w -o "etag: .+" | tr -d '\r' | sed 's/etag: //g'`
 
     rm -f "${temp_file}"
@@ -240,6 +259,8 @@ upload() {
     local etag
     local cont_type
     local header_etage
+    local resp_status
+    local rc
 
     dest="$1"
     src="$2"
@@ -264,6 +285,11 @@ upload() {
 
         # compare file hash
         etag=`head_etag "$dest_file_url"`
+        rc=$?
+        if [ $rc -eq 2 ]; then
+            return 2
+        fi
+
         if [ "z${filehash}" == "z${etag}" ] ; then
             if [ "$QUIETMODE" == "0" ]; then
                 echo "[-] File ${src} already uploaded"
@@ -284,7 +310,15 @@ upload() {
     if [ "$MD5CHECK" == "1" ]; then
         header_etage="-H ETag:$filehash"
     fi
-    $CURL ${CURLOPTS} --http1.0 -X PUT -H "X-Auth-Token: ${AUTH_TOKEN}" -H "Content-Type: ${cont_type:-application/octet-stream}" $header_etage "$dest_url" -g -T "$src" -s -D "$temp_file" 1> /dev/null
+    $CURL ${CURLOPTS} -X PUT -H "X-Auth-Token: ${AUTH_TOKEN}" -H "Content-Type: ${cont_type:-application/octet-stream}" $header_etage "$dest_url" -g -T "$src" -s -D "$temp_file" 1> /dev/null
+
+    resp_status=`cat "${temp_file}" | head -n1 | tr -d '\r'`
+    resp_status="${resp_status#* }"
+    if [ "$resp_status" == "403 Forbidden" ]; then
+        echo "[!] Deny uploading"
+        rm -f "${temp_file}"
+        return 2
+    fi
 
     # get hash for uploaded file (from response)
     etag=`cat "${temp_file}" | egrep -w -o "etag: .+" | tr -d '\r' | sed 's/etag: //g'`
@@ -299,21 +333,23 @@ upload() {
     if [ "$MD5CHECK" == "1" ]; then
         if [ "z$etag" != "z$filehash" ]; then
             echo "[!] Upload error: etag($etag) != md5hex($filehash)"
-            rm -f ${temp_file}
+            rm -f "${temp_file}"
             return
         fi
     fi
 
-    rm -f ${temp_file}
+    rm -f "${temp_file}"
 
     if [ "$QUIETMODE" == "0" ]; then
-        echo "[*] Upload OK! url=$dest_file_url etag=$etag"
+        echo "[*] Uploaded OK! Etag: $etag"
     fi
 }
 
 
 ## Main
 main() {
+    local rc
+
     auth "${AUTH_URL}" "${USER}" "${KEY}"
 
     if [ "`check_container "${DEST_DIR}"`" != "ok" ]; then
@@ -324,7 +360,13 @@ main() {
     ## Single file uploading
     if [ "z${RECURSIVEMODE}" != "z1" ]; then
         upload "${DEST_DIR}" "${SRC_PATH}"
-        exit 0
+        rc=$?
+
+        if [ $rc -eq 2 ]; then
+            echo "[!] Deny access"
+        fi
+
+        exit $rc
     fi
 
     ## Recursive uploading
@@ -343,6 +385,16 @@ main() {
         dest="${dest%%/}/"
 
         upload "$dest" "$src"
+        rc=$?
+
+        if [ $rc -eq 2 ]; then
+            if [ "$QUIETMODE" == "0" ]; then
+                echo "[.] Try reauth and uploading again"
+            fi
+
+            auth "${AUTH_URL}" "${USER}" "${KEY}"
+            upload "$dest" "$src"
+        fi
     done
 }
 
