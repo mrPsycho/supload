@@ -40,7 +40,7 @@ usage() {
 }
 
 # Defaults
-AUTH_URL="https://selcdn.ru/auth/v1.0/"
+AUTH_URL="https://auth.selcdn.ru/"
 RECURSIVEMODE=""
 USER=""
 KEY=""
