@@ -6,7 +6,7 @@
 # Cloud Files API (such as OpenStack Swift).
 #
 # Site: https://github.com/selectel/supload
-# Version: 1.0
+# Version: 1.1
 #
 # Feature:
 # - recursive upload
@@ -16,6 +16,9 @@
 # Requires:
 # - util curl
 # - util file
+#
+# Restrictions:
+# - support only less than 5G file to upload
 #
 # Authors:
 # - Konstantin Kapustin <sirkonst@gmail.com>
@@ -91,6 +94,14 @@ fi
 
 DEST_DIR="${1%%/}/" # ensure / in end
 SRC_PATH=`readlink -f "$2"`
+
+
+## Print message
+msg() {
+    if [ "$QUIETMODE" == "0" ]; then
+        echo "$1"
+    fi
+}
 
 
 ## Authentication request
@@ -249,7 +260,15 @@ check_container() {
 # params:
 # * $1 - destination path in stotage
 # * $2 - local file path
-upload() {
+# ret_codes:
+# * 0 - successfully uploaded
+# * 1 - upload failed
+# * 2 - access denied
+# * 3 - source file doesn't exist
+# * 4 - can't calc file hash
+# * 5 - file already uploaded
+# * 6 - hash doesn't match
+_upload() {
     local temp_file
     local dest
     local dest_url
@@ -270,8 +289,7 @@ upload() {
 
     # check for local file existence
     if [[ ! -e "$src" || -d "$src" ]]; then
-        echo "[!] Source file doesn't exist!"
-        return 1
+        return 3
     fi
 
     # check for file hash
@@ -279,22 +297,18 @@ upload() {
         # local file hash
         filehash=`${MD5SUM} "$src" | sed 's/ .*//g'`
         if [ -z "$filehash" ]; then
-            echo "[!] Can not calc file hash"
-            return 1
+            return 5
         fi
 
         # compare file hash
         etag=`head_etag "$dest_file_url"`
         rc=$?
         if [ $rc -eq 2 ]; then
-            return 2
+            return 2 # denied get ETAG from HEAD request
         fi
 
         if [ "z${filehash}" == "z${etag}" ] ; then
-            if [ "$QUIETMODE" == "0" ]; then
-                echo "[-] File ${src} already uploaded"
-            fi
-            return
+            return 5
         fi
     fi
 
@@ -303,9 +317,6 @@ upload() {
 
     # uploading
     temp_file=`mktemp /tmp/.supload.XXXXXX`
-    if [ "$QUIETMODE" == "0" ]; then
-        echo "[.] Uploading to $dest_file_url"
-    fi
 
     if [ "$MD5CHECK" == "1" ]; then
         header_etage="-H ETag:$filehash"
@@ -315,7 +326,6 @@ upload() {
     resp_status=`cat "${temp_file}" | head -n1 | tr -d '\r'`
     resp_status="${resp_status#* }"
     if [ "$resp_status" == "403 Forbidden" ]; then
-        echo "[!] Deny uploading"
         rm -f "${temp_file}"
         return 2
     fi
@@ -324,25 +334,90 @@ upload() {
     etag=`cat "${temp_file}" | egrep -w -o "etag: .+" | tr -d '\r' | sed 's/etag: //g'`
 
     if [ -z "$etag" ]; then
-        echo "[!] Upload failed"
-        cat "${temp_file}"
+        #cat "${temp_file}"
         rm -f "${temp_file}"
-        return
+        return 1
     fi
 
     if [ "$MD5CHECK" == "1" ]; then
         if [ "z$etag" != "z$filehash" ]; then
-            echo "[!] Upload error: etag($etag) != md5hex($filehash)"
             rm -f "${temp_file}"
-            return
+            return 6
         fi
     fi
 
     rm -f "${temp_file}"
 
-    if [ "$QUIETMODE" == "0" ]; then
-        echo "[*] Uploaded OK! Etag: $etag"
-    fi
+    echo "$etag"
+}
+
+
+## Upload file (with attempt again if failed)
+#
+# params:
+# * $1 - destination path in stotage
+# * $2 - local file path
+upload() {
+    local count
+    local src
+    local dst
+
+    dst="$1"
+    src="$2"
+
+    count=0
+    while [ 1 ]; do
+            ((++count))
+            if [ $count -gt 5 ]; then
+                echo "[!] Failed upload $src after $((count - 1)) attempts."
+                return 1
+            fi
+
+            msg "[.] Uploading $src..."
+            etag=$(_upload "$dst" "$src")
+            rc=$?
+
+            if [ $rc -eq 0 ]; then
+                msg "[*] Uploaded OK! Etag: $etag"
+                return
+            fi
+
+            if [ $rc -eq 1 ]; then
+                msg "[.] Attempt failed, try uploading again."
+                sleep "$count"
+                continue
+            fi
+
+            if [ $rc -eq 2 ]; then
+                msg "[.] Access denied, try reauth and uploading again."
+                sleep "$count"
+                continue
+            fi
+
+            if [ $rc -eq 3 ]; then
+                echo "[!] Source file $src doesn't exist!"
+                return 1
+            fi
+
+            if [ $rc -eq 4 ]; then
+                echo "[!] Error with calculate file hash, skip uploading $src"
+                return 1
+            fi
+
+            if [ $rc -eq 5 ]; then
+                msg "[.] File already uploaded."
+                return
+            fi
+
+            if [ $rc -eq 6 ]; then
+                msg "[.] Hash doesn't match after uploading."
+                sleep "$count"
+                continue
+            fi
+
+            echo "[!] Unknown error, failed upload $src"
+            return 1
+    done
 }
 
 
@@ -361,10 +436,6 @@ main() {
     if [ "z${RECURSIVEMODE}" != "z1" ]; then
         upload "${DEST_DIR}" "${SRC_PATH}"
         rc=$?
-
-        if [ $rc -eq 2 ]; then
-            echo "[!] Deny access"
-        fi
 
         exit $rc
     fi
@@ -385,16 +456,6 @@ main() {
         dest="${dest%%/}/"
 
         upload "$dest" "$src"
-        rc=$?
-
-        if [ $rc -eq 2 ]; then
-            if [ "$QUIETMODE" == "0" ]; then
-                echo "[.] Try reauth and uploading again"
-            fi
-
-            auth "${AUTH_URL}" "${USER}" "${KEY}"
-            upload "$dest" "$src"
-        fi
     done
 }
 

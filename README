@@ -1,7 +1,7 @@
 .. -*- mode: rst -*-
 
 What is ``supload``?
------------------
+--------------------
 
 It's simple script for upload file to cloud storage based on
 `OpenStack Swift API <http://docs.openstack.org/trunk/openstack-object-storage/developer/content/>`_.
@@ -13,6 +13,11 @@ Feature
 * recursive upload
 * check files by MD5 hash
 * upload only modified files
+
+
+Restrictions
+------------
+* support only less than 5G file to upload
 
 
 Installation
