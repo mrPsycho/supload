@@ -136,8 +136,8 @@ auth() {
         exit 1
     fi
 
-    STOR_URL=`cat "${temp_file}" | grep -w -o "x-storage-url: https://.*" | tr -d '\r' | sed 's/x-storage-url: //g'`
-    AUTH_TOKEN=`cat "${temp_file}" | grep -w -o "x-auth-token: .*" | tr -d '\r' | sed 's/x-auth-token: //g'`
+    STOR_URL=`cat "${temp_file}" | tr -d '\r' | awk -F': ' 'tolower($1) ~ /^x-storage-url/ { print $2 }'`
+    AUTH_TOKEN=`cat "${temp_file}" | tr -d '\r' | awk -F': ' 'tolower($1) ~ /^x-auth-token/ { print $2 }'`
 
     if [[ -z "${STOR_URL}" || -z "${AUTH_TOKEN}" ]]; then
         echo "[!] Auth failed"
