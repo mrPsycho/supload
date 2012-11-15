@@ -92,8 +92,21 @@ if [[ "$AUTH_URL" == https* ]]; then
     CURLOPTS="${CURLOPTS} -k"
 fi
 
+## helper for get abspath
+canonical_readlink() {
+  local filename
+
+  cd `dirname "$1"`;
+  filename=`basename "$1"`;
+  if [ -h $filename ]; then
+    canonical_readlink `readlink "$filename"`;
+  else
+    echo "`pwd -P`/$filename";
+  fi
+}
+
 DEST_DIR="${1%%/}/" # ensure / in end
-SRC_PATH=`readlink -f "$2"`
+SRC_PATH=`canonical_readlink "$2"`
 
 
 ## Print message
