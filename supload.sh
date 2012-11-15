@@ -55,8 +55,15 @@ QUIETMODE="0"
 # Utils
 CURL="`which curl`"
 CURLOPTS="--http1.0 --insecure"
-MD5SUM=`which md5sum`
+
 FILEEX=`which file`
+MD5SUM=`which md5sum`
+if [ -z "$MD5SUM" ]; then
+    MD5SUM=`which md5`
+    if [ -n "$MD5SUM" ]; then
+        MD5SUM="$MD5SUM -r"
+    fi
+fi
 
 # check utils
 if [ -z "$CURL" ]; then
@@ -65,6 +72,10 @@ if [ -z "$CURL" ]; then
 fi
 if [ -z "$FILEEX" ]; then
     echo "[!] To use this script you need to install util 'file'"
+    exit 1
+fi
+if [ -z "$MD5SUM" ]; then
+    echo "[!] To use this script you need to install util 'md5sum' or 'md5'"
     exit 1
 fi
 
