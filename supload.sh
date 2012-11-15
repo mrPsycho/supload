@@ -233,7 +233,7 @@ content_type() {
         return
     fi
 
-    echo "`$FILEEX -i -b "$file"`"
+    echo "`$FILEEX -b --mime-type "$file"`"
 }
 
 
