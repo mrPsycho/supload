@@ -6,7 +6,7 @@
 # Cloud Files API (such as OpenStack Swift).
 #
 # Site: https://github.com/selectel/supload
-# Version: 1.1
+# Version: 2.0
 #
 # Feature:
 # - recursive upload
@@ -22,6 +22,12 @@
 #
 # Authors:
 # - Konstantin Kapustin <sirkonst@gmail.com>
+#
+# Changes:
+# - 2.0:
+#   - ignore case for auth headers
+#   - support MacOsX
+#   - small fixes
 #
 # License: GPL-3
 #
