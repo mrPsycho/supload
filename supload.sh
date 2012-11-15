@@ -244,7 +244,7 @@ content_type() {
         return
     fi
 
-    echo "`$FILEEX -b --mime-type "$file"`"
+    echo "`$FILEEX -b --mime "$file" | awk -F\; '{ print $1 }'`"
 }
 
 
