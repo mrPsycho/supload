@@ -54,7 +54,7 @@ QUIETMODE="0"
 
 # Utils
 CURL="`which curl`"
-CURLOPTS="--http1.0"
+CURLOPTS="--http1.0 --insecure"
 MD5SUM=`which md5sum`
 FILEEX=`which file`
 
@@ -88,9 +88,6 @@ if [[ -z "$USER" || -z "$KEY" || -z "$1"  || -z "$2" ]]; then
     exit 1
 fi
 
-if [[ "$AUTH_URL" == https* ]]; then
-    CURLOPTS="${CURLOPTS} -k"
-fi
 
 ## helper for get abspath
 canonical_readlink() {
