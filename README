@@ -57,3 +57,13 @@ Upload all files in directory recursive (option ``-r``)::
 Force upload without checking existence files in storage by md5 (option ``-M``)::
 
     $ ./supload.sh -u USERNAME -k USERKEY -r -M storage_dir local_dir/
+
+
+Changes
+-------
+
+2.0:
+
+* ignore case for auth headers
+* support MacOsX
+* small fixes
