@@ -46,7 +46,7 @@ Get help::
     $ ./supload.sh
 
 Upload one file, file will be uploaded if not existence in storage or
-local file is difference from file in storage (md5 check)::
+local file is different from file in storage (md5 check)::
 
     $ ./supload.sh -u USERNAME -k USERKEY storage_dir local_file.path
 
@@ -54,7 +54,7 @@ Upload all files in directory recursive (option ``-r``)::
 
     $ ./supload.sh -u USRNAME -k USERKEY -r storage_dir local_dir/
 
-Force upload without checking existence files in storage by md5 (option ``-M``)::
+Force upload without checking existing files in storage by md5 (option ``-M``)::
 
     $ ./supload.sh -u USERNAME -k USERKEY -r -M storage_dir local_dir/
 
