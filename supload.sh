@@ -112,7 +112,7 @@ canonical_readlink() {
 
   cd `dirname "$1"`;
   filename=`basename "$1"`;
-  if [ -h $filename ]; then
+  if [ -h "$filename" ]; then
     canonical_readlink `readlink "$filename"`;
   else
     echo "`pwd -P`/$filename";
