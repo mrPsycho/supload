@@ -16,7 +16,7 @@
 #
 # Requires:
 # - util curl
-# - util file
+# - util file (option)
 #
 # Restrictions:
 # - support only less than 5G file to upload
@@ -27,6 +27,7 @@
 # Changes:
 # - 2.1:
 #   - add support for expiring files
+#   - util file not necessarily now
 # - 2.0:
 #   - ignore case for auth headers
 #   - support MacOsX
@@ -83,8 +84,7 @@ if [ -z "$CURL" ]; then
     exit 1
 fi
 if [ -z "$FILEEX" ]; then
-    echo "[!] To use this script you need to install util 'file'"
-    exit 1
+    echo "[~] Util 'file' not found, detection mime type will be skipped"
 fi
 if [ -z "$MD5SUM" ]; then
     echo "[!] To use this script you need to install util 'md5sum' or 'md5'"

@@ -71,6 +71,7 @@ Changes
 2.1:
 
 * add support for expiring files
+* util file not necessarily now
 
 
 2.0:
