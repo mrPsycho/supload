@@ -6,12 +6,13 @@
 # Cloud Files API (such as OpenStack Swift).
 #
 # Site: https://github.com/selectel/supload
-# Version: 2.0
+# Version: 2.1
 #
 # Feature:
 # - recursive upload
 # - check files by MD5 hash
 # - upload only modified files
+# - expiring files
 #
 # Requires:
 # - util curl
@@ -24,6 +25,8 @@
 # - Konstantin Kapustin <sirkonst@gmail.com>
 #
 # Changes:
+# - 2.1:
+#   - add support for expiring files
 # - 2.0:
 #   - ignore case for auth headers
 #   - support MacOsX

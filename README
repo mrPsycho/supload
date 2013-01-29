@@ -13,6 +13,7 @@ Feature
 * recursive upload
 * check files by MD5 hash
 * upload only modified files
+* expiring files
 
 
 Restrictions
@@ -59,9 +60,18 @@ Force upload without checking existing files in storage by md5 (option ``-M``)::
 
     $ ./supload.sh -u USERNAME -k USERKEY -r -M storage_dir local_dir/
 
+If the Storage supports expiring object you can set time when uploaded file must be deleted (option ``-d``). Uploaded file will be deleted after 7 days::
+
+    $ ./supload.sh -u USERNAME -k USERKEY -d 7d storage_dir file.doc
+
 
 Changes
 -------
+
+2.1:
+
+* add support for expiring files
+
 
 2.0:
 
