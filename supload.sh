@@ -35,13 +35,14 @@
 
 
 usage() {
-    echo "USAGE: $0 [-a auth_url] -u <USER> -k <KEY> [-r] [-M] <dest_dir> <src_path>"
+    echo "USAGE: $0 [-a auth_url] -u <USER> -k <KEY> [-r] [-M] [-d NUM<m:h:d>] <dest_dir> <src_path>"
     echo -e "Options:"
     echo -e "\t-a <auth_url>\tauthentication url (default: https://selcdn.ru/auth/v1.0/)"
     echo -e "\t-u <USER>\tuser name"
     echo -e "\t-k <KEY>\tuser password"
     echo -e "\t-r\t\trecursive upload"
     echo -e "\t-M\t\tdisable check upload by md5 sum"
+    echo -e "\t-d NUM<m:h:d>\tauto delete file in storage after NUM minutes or hours or days (default disable)"
     echo -e "\t-q\t\tquiet mode (error output only)"
     echo "Params:"
     echo -e "\t <dest_dir>\tdestination directory or container in storage (ex. containet/dir1/), not a file name"
@@ -56,6 +57,8 @@ KEY=""
 DEST_DIR=""
 SRC_PATH=""
 MD5CHECK="1"
+EXPIRE=""
+_ttlsec=""
 QUIETMODE="0"
 
 # Utils
@@ -86,13 +89,14 @@ if [ -z "$MD5SUM" ]; then
 fi
 
 
-while getopts ":ra:u:k:Mq" Option; do
+while getopts ":ra:u:k:d:Mq" Option; do
     case $Option in
             r ) RECURSIVEMODE="1";;
             a ) AUTH_URL="$OPTARG";;
             u ) USER="$OPTARG";;
             k ) KEY="$OPTARG";;
             M ) MD5CHECK="0";;
+            d ) EXPIRE="$OPTARG";;
             q ) QUIETMODE="1";;
             * ) echo "[!] Invalid option" && usage && exit 1;;
     esac
@@ -105,6 +109,26 @@ if [[ -z "$USER" || -z "$KEY" || -z "$1"  || -z "$2" ]]; then
     exit 1
 fi
 
+_expire_invalid() {
+    echo "[!] Invalid value for option -d. Examples: 7d, 24h, 30m"
+    usage
+    exit 1
+}
+
+if [ -n "$EXPIRE" ]; then
+    _e_val="${EXPIRE:0:${#EXPIRE}-1}"
+    _e_spec="${EXPIRE: -1}"
+
+    [ -z "$_e_val" ] && _expire_invalid
+    (("$_e_val" >= 1)) || _expire_invalid
+
+    case "$_e_spec" in
+        "d")    let "_ttlsec = _e_val * 86400" ;;
+        "h")    let "_ttlsec = _e_val * 3600" ;;
+        "m")    let "_ttlsec = _e_val * 60" ;;
+         *)     _expire_invalid ;;
+    esac
+fi
 
 ## helper for get abspath
 canonical_readlink() {
@@ -305,6 +329,7 @@ _upload() {
     local etag
     local cont_type
     local header_etage
+    local header_auto_delete
     local resp_status
     local rc
 
@@ -348,7 +373,10 @@ _upload() {
     if [ "$MD5CHECK" == "1" ]; then
         header_etage="-H ETag:$filehash"
     fi
-    $CURL ${CURLOPTS} -X PUT -H "X-Auth-Token: ${AUTH_TOKEN}" -H "Content-Type: ${cont_type:-application/octet-stream}" $header_etage "$dest_url" -g -T "$src" -s -D "$temp_file" 1> /dev/null
+    if [[ -n "$_ttlsec" ]]; then
+        header_auto_delete="-H X-Delete-After:$_ttlsec"
+    fi
+    $CURL ${CURLOPTS} -X PUT -H "X-Auth-Token: ${AUTH_TOKEN}" -H "Content-Type: ${cont_type:-application/octet-stream}" $header_etage $header_auto_delete "$dest_url" -g -T "$src" -s -D "$temp_file" 1> /dev/null
 
     resp_status=`cat "${temp_file}" | head -n1 | tr -d '\r'`
     resp_status="${resp_status#* }"
