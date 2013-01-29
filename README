@@ -30,8 +30,9 @@ Install for debian/ubuntu::
 
 Get script::
 
-    $ wget https://raw.github.com/selectel/supload/master/supload.sh
-    $ chmod +x supload.sh
+    $ wget https://raw.github.com/selectel/supload/master/supload.sh && chmod +x supload.sh
+    # or
+    $ curl -Ok https://raw.github.com/selectel/supload/master/supload.sh && chmod +x supload.sh
 
 You may move script to /usr/bin or /usr/local/bin if want.
 
