@@ -14,7 +14,7 @@ Feature
 * check files by MD5 hash
 * upload only modified files
 * expiring files
-
+# exclude files matches pattern
 
 Restrictions
 ------------
@@ -66,13 +66,21 @@ If the Storage supports expiring object you can set time when uploaded file must
 
     $ ./supload.sh -u USERNAME -k USERKEY -d 7d storage_dir file.doc
 
+Exclude some files for upload::
+
+    $ ./supload.sh -u USRNAME -k USERKEY -r -e ".git/*" -e "file_in_root_dir" -e "dir1/*/*.cache" -e "*~" -e "*.bak" storage_dir local_dir/
+
 
 Changes
 -------
 
+2.2:
+
+* add option for exclude files (-e)
+
 2.1:
 
-* add support for expiring files
+* add support for expiring files (-d)
 * util file not necessarily now
 
 

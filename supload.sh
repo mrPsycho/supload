@@ -6,13 +6,14 @@
 # Cloud Files API (such as OpenStack Swift).
 #
 # Site: https://github.com/selectel/supload
-# Version: 2.1
+# Version: 2.2
 #
 # Feature:
 # - recursive upload
 # - check files by MD5 hash
 # - upload only modified files
 # - expiring files
+# - exclude files matches pattern
 #
 # Requires:
 # - util curl
@@ -25,8 +26,10 @@
 # - Konstantin Kapustin <sirkonst@gmail.com>
 #
 # Changes:
+# - 2.2:
+#   - add option for exclude files (-e)
 # - 2.1:
-#   - add support for expiring files
+#   - add support for expiring files (-d)
 #   - util file not necessarily now
 # - 2.0:
 #   - ignore case for auth headers
@@ -39,7 +42,7 @@
 
 
 usage() {
-    echo "USAGE: $0 [-a auth_url] -u <USER> -k <KEY> [-r] [-M] [-d NUM<m:h:d>] <dest_dir> <src_path>"
+    echo "USAGE: $0 [-a auth_url] -u <USER> -k <KEY> [-r] [-M] [-d NUM<m:h:d>] [[-e pattern]...] <dest_dir> <src_path>"
     echo -e "Options:"
     echo -e "\t-a <auth_url>\tauthentication url (default: https://selcdn.ru/auth/v1.0/)"
     echo -e "\t-u <USER>\tuser name"
@@ -48,6 +51,7 @@ usage() {
     echo -e "\t-M\t\tdisable check upload by md5 sum"
     echo -e "\t-d NUM<m:h:d>\tauto delete file in storage after NUM minutes or hours or days (default disable)"
     echo -e "\t-q\t\tquiet mode (error output only)"
+    echo -e "\t-e pattern\texclude files by pattern (shell pattern syntax)"
     echo "Params:"
     echo -e "\t <dest_dir>\tdestination directory or container in storage (ex. containet/dir1/), not a file name"
     echo -e "\t <src_path>\tsource file or directory"
@@ -64,6 +68,7 @@ MD5CHECK="1"
 EXPIRE=""
 _ttlsec=""
 QUIETMODE="0"
+declare -a EXCLUDE_LIST
 
 # Utils
 CURL="`which curl`"
@@ -92,7 +97,7 @@ if [ -z "$MD5SUM" ]; then
 fi
 
 
-while getopts ":ra:u:k:d:Mq" Option; do
+while getopts ":ra:u:k:d:Mqe:" Option; do
     case $Option in
             r ) RECURSIVEMODE="1";;
             a ) AUTH_URL="$OPTARG";;
@@ -101,6 +106,7 @@ while getopts ":ra:u:k:d:Mq" Option; do
             M ) MD5CHECK="0";;
             d ) EXPIRE="$OPTARG";;
             q ) QUIETMODE="1";;
+            e ) EXCLUDE_LIST=( "${EXCLUDE_LIST[@]}" "$OPTARG" );;
             * ) echo "[!] Invalid option" && usage && exit 1;;
     esac
 done
@@ -148,7 +154,9 @@ canonical_readlink() {
 
 DEST_DIR="${1%%/}/" # ensure / in end
 SRC_PATH=`canonical_readlink "$2"`
-
+# remove /. and / in end
+SRC_PATH="${SRC_PATH%/.}"
+SRC_PATH="${SRC_PATH%/}"
 
 ## Print message
 msg() {
@@ -482,6 +490,7 @@ upload() {
 ## Main
 main() {
     local rc
+    local exc_opts
 
     auth "${AUTH_URL}" "${USER}" "${KEY}"
 
@@ -504,7 +513,12 @@ main() {
         exit 1
     fi
 
-    find "${SRC_PATH}" -type f -print0 | while read -d $'\0' f
+    for i in "${EXCLUDE_LIST[@]}"; do
+        exc_opts="$exc_opts -not -wholename $SRC_PATH/$i"
+    done
+
+    set -o noglob
+    find "${SRC_PATH}" -type f $exc_opts -print0 | while read -d $'\0' f
     do
         src=$f
 
