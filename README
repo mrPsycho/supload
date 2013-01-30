@@ -14,7 +14,7 @@ Feature
 * check files by MD5 hash
 * upload only modified files
 * expiring files
-# exclude files matches pattern
+* exclude files matches pattern
 
 Restrictions
 ------------
