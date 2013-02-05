@@ -74,6 +74,10 @@ Exclude some files for upload::
 Changes
 -------
 
+2.3:
+
+* hide password key in cmdline
+
 2.2:
 
 * add option for exclude files (-e)
@@ -82,7 +86,6 @@ Changes
 
 * add support for expiring files (-d)
 * util file not necessarily now
-
 
 2.0:
 

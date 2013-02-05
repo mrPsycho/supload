@@ -6,7 +6,7 @@
 # Cloud Files API (such as OpenStack Swift).
 #
 # Site: https://github.com/selectel/supload
-# Version: 2.2
+# Version: 2.3
 #
 # Feature:
 # - recursive upload
@@ -26,6 +26,8 @@
 # - Konstantin Kapustin <sirkonst@gmail.com>
 #
 # Changes:
+# - 2.3:
+#   - hide password key in cmdline
 # - 2.2:
 #   - add option for exclude files (-e)
 # - 2.1:
