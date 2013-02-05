@@ -39,7 +39,7 @@
 # License: GPL-3
 #
 ####################################################
-
+set -o noglob
 
 usage() {
     echo "USAGE: $0 [-a auth_url] -u <USER> -k <KEY> [-r] [-M] [-d NUM<m:h:d>] [[-e pattern]...] <dest_dir> <src_path>"
@@ -96,6 +96,7 @@ if [ -z "$MD5SUM" ]; then
     exit 1
 fi
 
+_agrs="$*"
 
 while getopts ":ra:u:k:d:Mqe:" Option; do
     case $Option in
@@ -111,6 +112,16 @@ while getopts ":ra:u:k:d:Mqe:" Option; do
     esac
 done
 shift $(($OPTIND - 1))
+
+# Hide password key
+if [ -n "$SELECTEL_STORAGE_PWD" ]; then
+    KEY="$SELECTEL_STORAGE_PWD"
+    export -n SELECTEL_STORAGE_PWD  # unset
+elif [ -n "$KEY" ]; then
+    export SELECTEL_STORAGE_PWD="$KEY"
+    # reexec and hide password key
+    exec $0 ${_agrs/$KEY/*****}
+fi
 
 if [[ -z "$USER" || -z "$KEY" || -z "$1"  || -z "$2" ]]; then
     echo "[!] Missing params"
@@ -517,7 +528,6 @@ main() {
         exc_opts="$exc_opts -not -wholename $SRC_PATH/$i"
     done
 
-    set -o noglob
     find "${SRC_PATH}" -type f $exc_opts -print0 | while read -d $'\0' f
     do
         src=$f
