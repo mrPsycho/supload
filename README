@@ -74,6 +74,10 @@ Exclude some files for upload::
 Changes
 -------
 
+2.4:
+
+* fixed: reauth when access denied
+
 2.3:
 
 * hide password key in cmdline

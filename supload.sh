@@ -6,7 +6,7 @@
 # Cloud Files API (such as OpenStack Swift).
 #
 # Site: https://github.com/selectel/supload
-# Version: 2.3
+# Version: 2.4
 #
 # Feature:
 # - recursive upload
@@ -26,6 +26,8 @@
 # - Konstantin Kapustin <sirkonst@gmail.com>
 #
 # Changes:
+# - 2.4:
+#   - fixed: reauth when access denied
 # - 2.3:
 #   - hide password key in cmdline
 # - 2.2:
@@ -189,6 +191,9 @@ msg() {
 # If authentication is successful the function sets environment variables:
 # * STOR_URL - storage url (always with / in end)
 # * AUTH_TOKEN - authentication token
+# ret_codes:
+# * 0 - successfully
+# * 1 - failed
 auth() {
     local temp_file
     local url
@@ -208,7 +213,7 @@ auth() {
     if [ "$resp_status" == "403 Forbidden" ]; then
         echo "[!] Deny access, auth failed!"
         rm -f "${temp_file}"
-        exit 1
+        return 1
     fi
 
     STOR_URL=`cat "${temp_file}" | tr -d '\r' | awk -F': ' 'tolower($1) ~ /^x-storage-url/ { print $2 }'`
@@ -218,7 +223,7 @@ auth() {
         echo "[!] Auth failed"
         cat "${temp_file}"
         rm -f "${temp_file}"
-        exit 1
+        return 1
     fi
 
     STOR_URL="${STOR_URL%%/}/"
@@ -440,9 +445,11 @@ upload() {
     local count
     local src
     local dst
+    local need_reauth
 
     dst="$1"
     src="$2"
+    need_reauth="0"
 
     count=0
     while [ 1 ]; do
@@ -450,6 +457,17 @@ upload() {
             if [ $count -gt 5 ]; then
                 echo "[!] Failed upload $src after $((count - 1)) attempts."
                 return 1
+            fi
+
+            if [ "x$need_reauth" == "x1" ]; then
+                auth "${AUTH_URL}" "${USER}" "${KEY}"
+                rc=$?
+                if [ $rc -eq 0 ]; then
+                    need_reauth="0"
+                else
+                    sleep "$count"
+                    continue
+                fi
             fi
 
             msg "[.] Uploading $src..."
@@ -470,6 +488,7 @@ upload() {
             if [ $rc -eq 2 ]; then
                 msg "[.] Access denied, try reauth and uploading again."
                 sleep "$count"
+                need_reauth="1"
                 continue
             fi
 
@@ -506,6 +525,10 @@ main() {
     local exc_opts
 
     auth "${AUTH_URL}" "${USER}" "${KEY}"
+    rc=$?
+    if [ $rc -ne 0 ]; then
+        exit 1
+    fi
 
     if [ "`check_container "${DEST_DIR}"`" != "ok" ]; then
         echo "[!] Container not exist"
