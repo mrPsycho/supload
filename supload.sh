@@ -216,8 +216,8 @@ auth() {
         return 1
     fi
 
-    STOR_URL=`cat "${temp_file}" | tr -d '\r' | awk -F': ' 'tolower($1) ~ /^x-storage-url/ { print $2 }'`
-    AUTH_TOKEN=`cat "${temp_file}" | tr -d '\r' | awk -F': ' 'tolower($1) ~ /^x-auth-token/ { print $2 }'`
+    STOR_URL=`cat "${temp_file}" | tr -d '\r' | awk -F': ' 'tolower($1) ~ /^x-storage-url$/ { print $2 }'`
+    AUTH_TOKEN=`cat "${temp_file}" | tr -d '\r' | awk -F': ' 'tolower($1) ~ /^x-auth-token$/ { print $2 }'`
 
     if [[ -z "${STOR_URL}" || -z "${AUTH_TOKEN}" ]]; then
         echo "[!] Auth failed"
