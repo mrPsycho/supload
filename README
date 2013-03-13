@@ -70,9 +70,18 @@ Exclude some files for upload::
 
     $ ./supload.sh -u USRNAME -k USERKEY -r -e ".git/*" -e "file_in_root_dir" -e "dir1/*/*.cache" -e "*~" -e "*.bak" storage_dir local_dir/
 
+Enable detect mime-type (by utility file) and set Content-Type for uploading file (option ``-c``)::
+
+    $ ./supload.sh -u USERNAME -k USERKEY -c storage_dir localfile
+
 
 Changes
 -------
+
+2.5:
+
+* disabled detect mime-type and set content-type by default
+* add option for enable detect mime-type (-c)
 
 2.4:
 

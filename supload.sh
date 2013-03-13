@@ -6,7 +6,7 @@
 # Cloud Files API (such as OpenStack Swift).
 #
 # Site: https://github.com/selectel/supload
-# Version: 2.4
+# Version: 2.5
 #
 # Feature:
 # - recursive upload
@@ -26,6 +26,9 @@
 # - Konstantin Kapustin <sirkonst@gmail.com>
 #
 # Changes:
+# - 2.5:
+#   - disabled detect mime-type and set content-type by default
+#   - add option for enable detect mime-type (-c)
 # - 2.4:
 #   - fixed: reauth when access denied
 # - 2.3:
@@ -56,6 +59,7 @@ usage() {
     echo -e "\t-d NUM<m:h:d>\tauto delete file in storage after NUM minutes or hours or days (default disable)"
     echo -e "\t-q\t\tquiet mode (error output only)"
     echo -e "\t-e pattern\texclude files by pattern (shell pattern syntax)"
+    echo -e "\t-c\t\tenable force detect mime type for file and set content-type for uploading file (usually the storage can do it self)"
     echo "Params:"
     echo -e "\t <dest_dir>\tdestination directory or container in storage (ex. containet/dir1/), not a file name"
     echo -e "\t <src_path>\tsource file or directory"
@@ -72,6 +76,7 @@ MD5CHECK="1"
 EXPIRE=""
 _ttlsec=""
 QUIETMODE="0"
+DETECT_MIMETYPE="0"
 declare -a EXCLUDE_LIST
 
 # Utils
@@ -94,6 +99,7 @@ if [ -z "$CURL" ]; then
 fi
 if [ -z "$FILEEX" ]; then
     echo "[~] Util 'file' not found, detection mime type will be skipped"
+    DETECT_MIMETYPE="0"
 fi
 if [ -z "$MD5SUM" ]; then
     echo "[!] To use this script you need to install util 'md5sum' or 'md5'"
@@ -102,7 +108,7 @@ fi
 
 _agrs="$*"
 
-while getopts ":ra:u:k:d:Mqe:" Option; do
+while getopts ":ra:u:k:d:Mqe:c" Option; do
     case $Option in
             r ) RECURSIVEMODE="1";;
             a ) AUTH_URL="$OPTARG";;
@@ -112,6 +118,7 @@ while getopts ":ra:u:k:d:Mqe:" Option; do
             d ) EXPIRE="$OPTARG";;
             q ) QUIETMODE="1";;
             e ) EXCLUDE_LIST=( "${EXCLUDE_LIST[@]}" "$OPTARG" );;
+            c ) DETECT_MIMETYPE="1";;
             * ) echo "[!] Invalid option" && usage && exit 1;;
     esac
 done
@@ -295,6 +302,11 @@ head_etag() {
 #
 # return: mime-type string or nothing
 content_type() {
+    if [[ x"$DETECT_MIMETYPE" == x"0" ]]; then
+        echo ""
+        return 0
+    fi
+
     local file
     file=$1
 
@@ -359,6 +371,7 @@ _upload() {
     local cont_type
     local header_etage
     local header_auto_delete
+    local header_content_type
     local resp_status
     local rc
 
@@ -395,17 +408,22 @@ _upload() {
 
     # mime-type
     cont_type=`content_type "$src"`
+    if [ -n "$cont_type" ]; then
+        header_content_type="-H Content-Type:$cont_type"
+    fi
 
-    # uploading
-    temp_file=`mktemp /tmp/.supload.XXXXXX`
-
+    # md5
     if [ "$MD5CHECK" == "1" ]; then
         header_etage="-H ETag:$filehash"
     fi
+    # auto delete
     if [[ -n "$_ttlsec" ]]; then
         header_auto_delete="-H X-Delete-After:$_ttlsec"
     fi
-    $CURL ${CURLOPTS} -X PUT -H "X-Auth-Token: ${AUTH_TOKEN}" -H "Content-Type: ${cont_type:-application/octet-stream}" $header_etage $header_auto_delete "$dest_url" -g -T "$src" -s -D "$temp_file" 1> /dev/null
+
+    # uploading
+    temp_file=`mktemp /tmp/.supload.XXXXXX`
+    $CURL ${CURLOPTS} -X PUT -H "X-Auth-Token: ${AUTH_TOKEN}" $header_content_type $header_etage $header_auto_delete "$dest_url" -g -T "$src" -s -D "$temp_file" 1> /dev/null
 
     resp_status=`cat "${temp_file}" | head -n1 | tr -d '\r'`
     resp_status="${resp_status#* }"
