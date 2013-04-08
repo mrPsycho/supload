@@ -51,7 +51,7 @@ set -o noglob
 usage() {
     echo "USAGE: $0 [-a auth_url] -u <USER> -k <KEY> [-r] [-M] [-d NUM<m:h:d>] [[-e pattern]...] <dest_dir> <src_path>"
     echo -e "Options:"
-    echo -e "\t-a <auth_url>\tauthentication url (default: https://selcdn.ru/auth/v1.0/)"
+    echo -e "\t-a <auth_url>\tauthentication url (default: https://auth.selcdn.ru/)"
     echo -e "\t-u <USER>\tuser name"
     echo -e "\t-k <KEY>\tuser password"
     echo -e "\t-r\t\trecursive upload"
