@@ -61,7 +61,7 @@ usage() {
     echo -e "\t-e pattern\texclude files by pattern (shell pattern syntax)"
     echo -e "\t-c\t\tenable force detect mime type for file and set content-type for uploading file (usually the storage can do it self)"
     echo "Params:"
-    echo -e "\t <dest_dir>\tdestination directory or container in storage (ex. containet/dir1/), not a file name"
+    echo -e "\t <dest_dir>\tdestination directory or container in storage (ex. container/dir1/), not a file name"
     echo -e "\t <src_path>\tsource file or directory"
 }
 
