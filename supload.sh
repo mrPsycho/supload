@@ -106,7 +106,12 @@ if [ -z "$MD5SUM" ]; then
     exit 1
 fi
 
-_agrs="$*"
+i=0
+_agrs=()
+for arg in "$@"; do
+    _agrs[$i]="$arg"
+    i=$((i + 1))
+done
 
 while getopts ":ra:u:k:d:Mqe:c" Option; do
     case $Option in
@@ -131,7 +136,7 @@ if [ -n "$SELECTEL_STORAGE_PWD" ]; then
 elif [ -n "$KEY" ]; then
     export SELECTEL_STORAGE_PWD="$KEY"
     # reexec and hide password key
-    exec $0 ${_agrs/$KEY/*****}
+    exec $0 "${_agrs[@]/$KEY/*****}"
 fi
 
 if [[ -z "$USER" || -z "$KEY" || -z "$1"  || -z "$2" ]]; then
@@ -330,7 +335,7 @@ check_container() {
     local temp_file
     local cont
     local status
-    cont="${1%%/*}"
+    cont=`url_encode "${1%%/*}"`
     temp_file=`mktemp /tmp/.supload.XXXXXX`
 
     url="${STOR_URL}/${cont}"
