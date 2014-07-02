@@ -436,6 +436,10 @@ _upload() {
         rm -f "${temp_file}"
         return 2
     fi
+    if [ "$resp_status" == "401 Unauthorized" ]; then
+        rm -f "${temp_file}"
+        return 2
+    fi
 
     # get hash for uploaded file (from response)
     etag=`cat "${temp_file}" | egrep -w -o "etag: .+" | tr -d '\r' | sed 's/etag: //g'`
