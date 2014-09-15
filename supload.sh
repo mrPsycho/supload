@@ -6,7 +6,7 @@
 # Cloud Files API (such as OpenStack Swift).
 #
 # Site: https://github.com/selectel/supload
-# Version: 2.5
+# Version: 2.6
 #
 # Feature:
 # - recursive upload
@@ -14,6 +14,7 @@
 # - upload only modified files
 # - expiring files
 # - exclude files matches pattern
+# - find and upload only newest files
 #
 # Requires:
 # - util curl
@@ -26,6 +27,10 @@
 # - Konstantin Kapustin <sirkonst@gmail.com>
 #
 # Changes:
+# - 2.6:
+#   - added new option for find&filter files by modified time  (-m)
+#   - fixed parser for etag header
+#   - added handle for 401 Unauthorized
 # - 2.5:
 #   - disabled detect mime-type and set content-type by default
 #   - add option for enable detect mime-type (-c)
@@ -49,7 +54,7 @@
 set -o noglob
 
 usage() {
-    echo "USAGE: $0 [-a auth_url] -u <USER> -k <KEY> [-r] [-M] [-C] [-d NUM<m:h:d>] [[-e pattern]...] <dest_dir> <src_path>"
+    echo "USAGE: $0 [-a auth_url] -u <USER> -k <KEY> [-r] [-M] [-m <filter>] [-d NUM<m:h:d>] [[-e pattern]...] <dest_dir> <src_path>"
     echo -e "Options:"
     echo -e "\t-a <auth_url>\tauthentication url (default: https://auth.selcdn.ru/)"
     echo -e "\t-u <USER>\tuser name"
@@ -60,7 +65,7 @@ usage() {
     echo -e "\t-q\t\tquiet mode (error output only)"
     echo -e "\t-e pattern\texclude files by pattern (shell pattern syntax)"
     echo -e "\t-c\t\tenable force detect mime type for file and set content-type for uploading file (usually the storage can do it self)"
-    echo -e "\t-C\t\tadd CTIME filter. Usefull to upload only new files in large directory
+    echo -e "\t-m\t\tadd MTIME filter. Usefull to upload only new files in large directory."
     echo "Params:"
     echo -e "\t <dest_dir>\tdestination directory or container in storage (ex. container/dir1/), not a file name"
     echo -e "\t <src_path>\tsource file or directory"
@@ -78,7 +83,7 @@ EXPIRE=""
 _ttlsec=""
 QUIETMODE="0"
 DETECT_MIMETYPE="0"
-CTIME="+0"
+MTIME=""
 declare -a EXCLUDE_LIST
 
 # Utils
@@ -115,7 +120,7 @@ for arg in "$@"; do
     i=$((i + 1))
 done
 
-while getopts ":ra:u:k:d:Mqe:c:C:" Option; do
+while getopts ":ra:u:k:d:Mqe:c:m:" Option; do
     case $Option in
             r ) RECURSIVEMODE="1";;
             a ) AUTH_URL="$OPTARG";;
@@ -126,7 +131,7 @@ while getopts ":ra:u:k:d:Mqe:c:C:" Option; do
             q ) QUIETMODE="1";;
             e ) EXCLUDE_LIST=( "${EXCLUDE_LIST[@]}" "$OPTARG" );;
             c ) DETECT_MIMETYPE="1";;
-            C ) CTIME="$OPTARG";;
+            m ) MTIME="$OPTARG";;
             * ) echo "[!] Invalid option" && usage && exit 1;;
     esac
 done
@@ -583,7 +588,12 @@ main() {
         exc_opts="$exc_opts -not -wholename $SRC_PATH/$i"
     done
 
-    find "${SRC_PATH}" -ctime $CTIME -type f $exc_opts -print0 | while read -d $'\0' f
+    opts=""
+    if [[ -n "$MTIME" ]]; then
+        opts="-mtime ${MTIME}"
+    fi
+
+    find "${SRC_PATH}" $opts -type f $exc_opts -print0 | while read -d $'\0' f
     do
         src=$f
 

@@ -74,9 +74,19 @@ Enable detect mime-type (by utility file) and set Content-Type for uploading fil
 
     $ ./supload.sh -u USERNAME -k USERKEY -c storage_dir localfile
 
+Upload only files modified in the last 7 days (option ``-m``)::
+
+    $ ./supload.sh -u USERNAME -k USERKEY -r -m -7 storage_dir local_dir/
+
 
 Changes
 -------
+
+2.6:
+
+* added new option for find&filter files by modified time p(-m)
+* fixed parser for etag header
+* added handle for 401 Unauthorized
 
 2.5:
 
